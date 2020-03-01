@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+
+  <modelVersion>4.0.0</modelVersion>
+
+  <groupId>dk.ralu.opensource.testsupport</groupId>
+  <artifactId>log-test-util</artifactId>
+  <version>0.1-SNAPSHOT</version>
+  <name>Java Log Test Utils</name>
+  <description>Util that help inspect, await, and test logging done with SLF4J and Logback Classic</description>
+  <url>https://github.com/opensource-ralu-dk/test-support</url>
+
+  <licenses>
+    <license>
+      <name>The Apache License, Version 2.0</name>
+      <url>http://www.apache.org/licenses/LICENSE-2.0.txt</url>
+    </license>
+  </licenses>
+
+  <developers>
+    <developer>
+      <name>Rasmus Lund</name>
+      <email>rasmus@ralu.dk</email>
+      <organization>RaLu Denmark</organization>
+      <organizationUrl>https://github.com/opensource-ralu-dk</organizationUrl>
+    </developer>
+  </developers>
+
+  <scm>
+    <connection>scm:git:git://github.com/opensource-ralu-dk/test-support.git</connection>
+    <developerConnection>scm:git:git://github.com/opensource-ralu-dk/test-support.git</developerConnection>
+    <url>https://github.com/opensource-ralu-dk/test-support/tree/master</url>
+  </scm>
+
+  <dependencies>
+    <dependency>
+      <groupId>ch.qos.logback</groupId>
+      <artifactId>logback-classic</artifactId>
+      <version>1.2.3</version>
+    </dependency>
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter-engine</artifactId>
+      <version>5.6.0</version>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <version>3.8.1</version>
+        <configuration>
+          <source>1.8</source>
+          <target>1.8</target>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
+
+</project>
