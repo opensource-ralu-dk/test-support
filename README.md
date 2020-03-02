@@ -5,7 +5,17 @@ may be the test helper you are looking for.
 
 Only works if you use: `SLF4J` and `Logback Classic`.
 
-Some examples (from `LoggingTestUtilTest.java`).
+Maven dependency:
+
+```xml
+<dependency>
+  <groupId>dk.ralu.opensource.testsupport</groupId>
+  <artifactId>log-test-util</artifactId>
+  <version>0.1</version>
+</dependency>
+```
+
+Note: Examples below are from `LoggingTestUtilTest.java`.
 
 We can "record" log messages and assert they are as expected:
 ```java
