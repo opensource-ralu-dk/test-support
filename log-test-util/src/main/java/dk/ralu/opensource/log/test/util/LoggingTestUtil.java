@@ -31,14 +31,16 @@ public class LoggingTestUtil implements AutoCloseable {
     private final Map<Consumer<ILoggingEvent>, Object> loggingEventListeners = new IdentityHashMap<>(); // Value not used
 
     /**
-     * Creates a new instance, that registers at the root logger.
+     * Creates a new instance, that received logging events by registering a custom logging appender on the root logger.
      */
     public LoggingTestUtil() {
         this(((LoggerContext) LoggerFactory.getILoggerFactory()).getLogger(Logger.ROOT_LOGGER_NAME));
     }
 
     /**
-     * Creates a new instance, that registers at the logger given as parameter.
+     * Creates a new instance, that received logging events by registering a custom logging appender on the provided logger.
+     *
+     * @param slf4jLogger the logger on which to register.
      */
     public LoggingTestUtil(org.slf4j.Logger slf4jLogger) {
         if (!(Objects.requireNonNull(slf4jLogger) instanceof Logger)) {
@@ -46,36 +48,39 @@ public class LoggingTestUtil implements AutoCloseable {
         }
         logger = (Logger) slf4jLogger;
         levelAtInitializationTime = logger.getLevel();
-        nonSynchronizedInternalActivate();
+        nonSynchronizedActivate();
     }
 
     /**
-     * All log event listeners will start receiving log events. Should call {@link }
+     * Overrides the logging level threshold on the logger on which the logging test util is connected. Note: When closing this logger the
+     * logging level will automatically be reset to its original value.
+     *
+     * @param newLevel the log level you want to use.
      */
-    public synchronized void activate() {
-        nonSynchronizedInternalActivate();
-    }
-
-
-    public synchronized void deactivate() {
-        logger.detachAppender(internalAppender);
-        internalAppender.stop();
-    }
-
     public synchronized void setLevel(Level newLevel) {
         logger.setLevel(newLevel);
     }
 
+    /**
+     * Reset the logging level threshold of the logger on which the logging test util was connected.
+     */
     public synchronized void resetLevel() {
         logger.setLevel(levelAtInitializationTime);
     }
 
+    /**
+     * Get the current logging level threshold of the logger on which the logging test util was connected.
+     *
+     * @return the current logging level.
+     */
     public synchronized Level getLevel() {
         return logger.getLevel();
     }
 
     /**
-     * A quick way to reset everything. More precisely does the following:
+     * A quick way to reset everything. The instance cannot be used anymore.
+     * <p>
+     * More precisely does the following:
      * <ul>
      * <li>Resets the root logger to its initial log level
      * <li>Removes all registered logging event listeners
@@ -89,10 +94,20 @@ public class LoggingTestUtil implements AutoCloseable {
         deactivate();
     }
 
+    /**
+     * Registers a new logging even listener.
+     *
+     * @param loggingEventListener the listener to register.
+     */
     public synchronized void addLoggingEventListener(Consumer<ILoggingEvent> loggingEventListener) {
         loggingEventListeners.put(Objects.requireNonNull(loggingEventListener), null);
     }
 
+    /**
+     * Removes a previously registered logging even listener.
+     *
+     * @param loggingEventListener the listener to remove.
+     */
     public synchronized void removeLoggingEventListener(Consumer<ILoggingEvent> loggingEventListener) {
         loggingEventListeners.remove(Objects.requireNonNull(loggingEventListener));
     }
@@ -111,27 +126,33 @@ public class LoggingTestUtil implements AutoCloseable {
 
     /**
      * As {@link #awaitLoggingEvents(Duration, int, Predicate)} but only awaits the fist logging event that matches.
+     *
+     * @param timeout               the max duration to wait for the matching logging events
+     * @param loggingEventPredicate the predicate that the awaited logging events must match
+     * @return a list of the logging events that matched the predicate (size will match times)
+     * @throws InterruptedException  if the awaiting thread was interrupted - e.g. if you annotated a JUnit 5 test with {@code @Timeout}.
+     * @throws AwaitTimeoutException if the required number of matching logging events didn't turn up within the duration
      */
-    public ILoggingEvent awaitLoggingEvent(Duration duration, Predicate<ILoggingEvent> loggingEventPredicate)
+    public ILoggingEvent awaitLoggingEvent(Duration timeout, Predicate<ILoggingEvent> loggingEventPredicate)
             throws InterruptedException, AwaitTimeoutException {
 
-        return awaitLoggingEvents(duration, 1, loggingEventPredicate).get(0);
+        return awaitLoggingEvents(timeout, 1, loggingEventPredicate).get(0);
     }
 
     /**
      * Blocks the current thread until {@code numberOfEvents} matching {@code AwaitTimeoutException} has happened.
      *
-     * @param duration              the max duration to wait for the matching logging events
+     * @param timeout               the max duration to wait for the matching logging events
      * @param numberOfEvents        the number of matching logging events to wait for
      * @param loggingEventPredicate the predicate that the awaited logging events must match
      * @return a list of the logging events that matched the predicate (size will match times)
      * @throws InterruptedException  if the awaiting thread was interrupted - e.g. if you annotated a JUnit 5 test with {@code @Timeout}.
      * @throws AwaitTimeoutException if the required number of matching logging events didn't turn up within the duration
      */
-    public List<ILoggingEvent> awaitLoggingEvents(Duration duration, int numberOfEvents, Predicate<ILoggingEvent> loggingEventPredicate)
+    public List<ILoggingEvent> awaitLoggingEvents(Duration timeout, int numberOfEvents, Predicate<ILoggingEvent> loggingEventPredicate)
             throws InterruptedException, AwaitTimeoutException {
 
-        LoggingEventSynchronizer loggingEventSynchronizer = new LoggingEventSynchronizer(duration, numberOfEvents, loggingEventPredicate);
+        LoggingEventSynchronizer loggingEventSynchronizer = new LoggingEventSynchronizer(timeout, numberOfEvents, loggingEventPredicate);
         try {
             synchronized (this) {
                 addLoggingEventListener(loggingEventSynchronizer);
@@ -144,27 +165,49 @@ public class LoggingTestUtil implements AutoCloseable {
         }
     }
 
+    /**
+     * Records logging events by storing them in memory.
+     */
     public class LoggingEventRecorder implements Consumer<ILoggingEvent> {
 
         private final List<ILoggingEvent> loggingEvents = new ArrayList<>();
 
+        /**
+         * Called when a new logging event happens.
+         *
+         * @param loggingEvent the logging event.
+         */
         @Override
         public void accept(ILoggingEvent loggingEvent) {
             loggingEvents.add(loggingEvent);
         }
 
+        /**
+         * Clears the logging events recorded up until now.
+         */
         public void clear() {
             synchronized (LoggingTestUtil.this) {
                 loggingEvents.clear();
             }
         }
 
+        /**
+         * Get the recorded logging events.
+         *
+         * @return the recorded logging events
+         */
         public List<ILoggingEvent> getLoggingEvents() {
             synchronized (LoggingTestUtil.this) {
                 return new ArrayList<>(loggingEvents);
             }
         }
 
+        /**
+         * Count how many of the recorded log messages match the given predicate.
+         *
+         * @param loggingEventPredicate the predicate logging events must match.
+         * @return the number of matches.
+         */
         public int countMatches(Predicate<ILoggingEvent> loggingEventPredicate) {
             int matches = 0;
             for (ILoggingEvent loggingEvent : loggingEvents) {
@@ -175,12 +218,18 @@ public class LoggingTestUtil implements AutoCloseable {
             return matches;
         }
 
+        /**
+         * Counts the number of logging messages that match the given string.
+         *
+         * @param logMessage the log message to count.
+         * @return how many log messages matched.
+         */
         public int countMatches(String logMessage) {
             return countMatches(loggingEvent -> Objects.equals(logMessage, loggingEvent.getFormattedMessage()));
         }
     }
 
-    public static class LoggingEventSynchronizer implements Consumer<ILoggingEvent> {
+    private static class LoggingEventSynchronizer implements Consumer<ILoggingEvent> {
 
         private final Predicate<ILoggingEvent> loggingEventPredicate;
         private final Duration duration;
@@ -212,9 +261,12 @@ public class LoggingTestUtil implements AutoCloseable {
         }
     }
 
+    /**
+     * Thrown if an invocation of {@code await..()} timed out before the expected logging message(s) were seen.
+     */
     public static class AwaitTimeoutException extends Exception {
 
-        AwaitTimeoutException() {
+        private AwaitTimeoutException() {
             super("Did not receive the requested logging events within duration");
         }
     }
@@ -222,7 +274,7 @@ public class LoggingTestUtil implements AutoCloseable {
     // http://logback.qos.ch/manual/appenders.html#WriteYourOwnAppender
     private class InternalAppender extends AppenderBase<ILoggingEvent> {
 
-        InternalAppender() {
+        private InternalAppender() {
             setName(InternalAppender.class.getSimpleName() + "-" + UUID.randomUUID());
         }
 
@@ -232,9 +284,14 @@ public class LoggingTestUtil implements AutoCloseable {
         }
     }
 
-    private void nonSynchronizedInternalActivate() {
+    private void nonSynchronizedActivate() {
         internalAppender.start();
         logger.addAppender(internalAppender);
+    }
+
+    private synchronized void deactivate() {
+        logger.detachAppender(internalAppender);
+        internalAppender.stop();
     }
 
     private synchronized void onLoggingEvent(ILoggingEvent loggingEvent) {
