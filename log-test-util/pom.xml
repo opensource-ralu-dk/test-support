@@ -6,7 +6,7 @@
 
   <groupId>dk.ralu.opensource.testsupport</groupId>
   <artifactId>log-test-util</artifactId>
-  <version>0.1</version>
+  <version>0.2-SNAPSHOT</version>
   <name>Java Log Test Utils</name>
   <description>Util that help inspect, await, and test logging done with SLF4J and Logback Classic</description>
   <url>https://github.com/opensource-ralu-dk/test-support</url>
